@@ -5,7 +5,10 @@ FROM  bitnami/minideb:stretch
 # https://tools.sphinxsearch.com/downloads/latest/
 ENV SPHINX_MONITOR_VERSION 0.5.5
 
-RUN apt-get update && apt-get install -y wget
+# mpstat not found. Installing sysstat package is recommended.
+RUN apt-get update && apt-get install -y \
+	sysstat \
+	wget
 
 RUN mkdir -p /opt/sphinxmonitor
 
@@ -15,6 +18,17 @@ RUN cd /opt/sphinxmonitor && tar -xf /tmp/sphinxmonitor.tar.gz && rm /tmp/sphinx
 
 # point to binaries
 ENV PATH "${PATH}:/opt/sphinxmonitor/bin"
-RUN sphinxmonitor
+RUN sphinxmonitor; /bin/true
 
-#CMD searchd --nodetach --config /opt/sphinx/conf/sphinx.conf
+# redirect logs to stdout
+RUN mkdir -p /opt/sphinxmonitor/logs && ln -sv /dev/stdout /opt/sphinxmonitor/logs
+
+# expose config directory
+# /etc/sphinxsearch/sphinx.conf should be mounted (as SPHINX_CONFIG in JSON config states)
+VOLUME /etc/sphinxsearch
+
+# set up run script
+COPY run_sphinxmonitor.sh /opt/sphinxmonitor/bin/
+RUN chmod 744 /opt/sphinxmonitor/bin/run_sphinxmonitor.sh
+
+CMD run_sphinxmonitor.sh
